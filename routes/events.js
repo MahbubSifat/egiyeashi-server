@@ -66,7 +66,11 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    res.json(event);
+       const joinedCount = await db
+      .collection("joinedEvents")
+      .countDocuments({ eventId: event._id });
+
+    res.json({ ...event, joinedCount });
   } catch (error) {
     res.status(500).json({ message: "Failed to load event" });
   }
@@ -171,6 +175,75 @@ router.delete("/:id", verifyJwt, async (req, res) => {
     res.json({ message: "Event deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete event" });
+  }
+});
+
+// POST /events/:id/join  → join an event (login required)
+router.post("/:id/join", verifyJwt, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid event id" });
+    }
+
+    const db = await getDb();
+    const event = await db
+      .collection("events")
+      .findOne({ _id: new ObjectId(id) });
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    if (event.eventDate < todayInDhaka()) {
+      return res
+        .status(400)
+        .json({ message: "This event has already taken place" });
+    }
+
+    try {
+      await db.collection("joinedEvents").insertOne({
+        eventId: event._id,
+        eventTitle: event.title,
+        eventDate: event.eventDate,
+        userEmail: req.user.email,
+        userName: req.user.name,
+        joinedAt: new Date(),
+      });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ message: "You have already joined this event" });
+      }
+      throw error;
+    }
+
+    res.status(201).json({ message: "You have joined this event" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to join event" });
+  }
+});
+
+// GET /events/:id/joined  → has the logged-in user joined this event?
+router.get("/:id/joined", verifyJwt, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid event id" });
+    }
+
+    const db = await getDb();
+    const record = await db.collection("joinedEvents").findOne({
+      eventId: new ObjectId(id),
+      userEmail: req.user.email,
+    });
+
+    res.json({ joined: Boolean(record) });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to check join status" });
   }
 });
 
