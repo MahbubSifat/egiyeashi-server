@@ -19,7 +19,7 @@ function isRealDate(value) {
   );
 }
 
-function validateEventInput(body = {}) {
+function validateEventInput(body = {}, options = {}) {
   const errors = {};
 
   const data = {
@@ -48,7 +48,10 @@ function validateEventInput(body = {}) {
   }
   if (!isRealDate(data.eventDate)) {
     errors.eventDate = "Please provide a valid date";
-  } else if (data.eventDate <= todayInDhaka()) {
+    } else if (
+    data.eventDate <= todayInDhaka() &&
+    data.eventDate !== options.keepDate
+  ) {
     errors.eventDate = "Event date must be in the future";
   }
 

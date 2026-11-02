@@ -2,6 +2,8 @@ const express = require("express");
 const { ObjectId } = require("mongodb");
 const { getDb } = require("../db");
 const { todayInDhaka } = require("../utils/date");
+const { validateEventInput } = require("../utils/validateEvent");
+const verifyJwt = require("../middleware/verifyJwt");
 const router = express.Router();
 
 function escapeRegex(text) {
@@ -67,6 +69,32 @@ router.get("/:id", async (req, res) => {
     res.json(event);
   } catch (error) {
     res.status(500).json({ message: "Failed to load event" });
+  }
+});
+
+// POST /events  → create an event (login required)
+router.post("/", verifyJwt, async (req, res) => {
+  try {
+    const { isValid, errors, data } = validateEventInput(req.body);
+
+    if (!isValid) {
+      return res
+        .status(400)
+        .json({ message: "Please fix the highlighted fields", errors });
+    }
+
+    const db = await getDb();
+    const event = {
+      ...data,
+      creatorEmail: req.user.email,
+      creatorName: req.user.name,
+      createdAt: new Date(),
+    };
+
+    const result = await db.collection("events").insertOne(event);
+    res.status(201).json({ insertedId: result.insertedId });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create event" });
   }
 });
 
