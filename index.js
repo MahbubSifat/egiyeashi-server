@@ -3,6 +3,7 @@ const eventsRouter = require("./routes/events");
 const express = require("express");
 const cors = require("cors");
 const { getDb } = require("./db");
+const meRouter = require("./routes/me");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -31,6 +32,7 @@ app.get("/health", async (req, res) => {
 });
 
 app.use("/events", eventsRouter);
+app.use(meRouter);
 if (require.main === module) {
   app.listen(port, () => {
     console.log(`EgiyeAshi server listening on port ${port}`);
