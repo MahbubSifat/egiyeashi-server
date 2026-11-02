@@ -1,7 +1,7 @@
 const express = require("express");
+const { ObjectId } = require("mongodb");
 const { getDb } = require("../db");
 const { todayInDhaka } = require("../utils/date");
-
 const router = express.Router();
 
 function escapeRegex(text) {
@@ -42,6 +42,31 @@ router.get("/", async (req, res) => {
     res.json(events);
   } catch (error) {
     res.status(500).json({ message: "Failed to load events" });
+  }
+});
+
+
+// GET /events/:id  → single event details (public)
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid event id" });
+    }
+
+    const db = await getDb();
+    const event = await db
+      .collection("events")
+      .findOne({ _id: new ObjectId(id) });
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    res.json(event);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to load event" });
   }
 });
 
