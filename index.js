@@ -1,4 +1,5 @@
 require("dotenv").config();
+const eventsRouter = require("./routes/events");
 const express = require("express");
 const cors = require("cors");
 const { getDb } = require("./db");
@@ -29,6 +30,7 @@ app.get("/health", async (req, res) => {
   }
 });
 
+app.use("/events", eventsRouter);
 if (require.main === module) {
   app.listen(port, () => {
     console.log(`EgiyeAshi server listening on port ${port}`);
