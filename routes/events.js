@@ -98,4 +98,80 @@ router.post("/", verifyJwt, async (req, res) => {
   }
 });
 
+// PUT /events/:id  → update an event (only the creator)
+router.put("/:id", verifyJwt, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid event id" });
+    }
+
+    const db = await getDb();
+    const events = db.collection("events");
+    const existing = await events.findOne({ _id: new ObjectId(id) });
+
+    if (!existing) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    if (existing.creatorEmail !== req.user.email) {
+      return res
+        .status(403)
+        .json({ message: "You can only update your own events" });
+    }
+
+    const { isValid, errors, data } = validateEventInput(req.body, {
+      keepDate: existing.eventDate,
+    });
+
+    if (!isValid) {
+      return res
+        .status(400)
+        .json({ message: "Please fix the highlighted fields", errors });
+    }
+
+    await events.updateOne(
+      { _id: existing._id },
+      { $set: { ...data, updatedAt: new Date() } }
+    );
+
+    res.json({ message: "Event updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update event" });
+  }
+});
+
+// DELETE /events/:id  → delete an event (only the creator)
+router.delete("/:id", verifyJwt, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid event id" });
+    }
+
+    const db = await getDb();
+    const events = db.collection("events");
+    const existing = await events.findOne({ _id: new ObjectId(id) });
+
+    if (!existing) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    if (existing.creatorEmail !== req.user.email) {
+      return res
+        .status(403)
+        .json({ message: "You can only delete your own events" });
+    }
+
+    await events.deleteOne({ _id: existing._id });
+    await db.collection("joinedEvents").deleteMany({ eventId: existing._id });
+
+    res.json({ message: "Event deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete event" });
+  }
+});
+
 module.exports = router;
